@@ -16,6 +16,7 @@ function _defineObjectShape(parent, prefix, node) {
 
   for (let child of node.children) {
     switch (child.type) {
+    case 'foreign_column':
     case 'column':
       fieldDefinition[child.fieldName] = prefixToPass + child.as
       break
@@ -52,6 +53,7 @@ function _defineObjectShape(parent, prefix, node) {
     const suffix = '@' + typeName
     for (let child of node.typedChildren[typeName]) {
       switch (child.type) {
+      case 'foreign_column':
       case 'column':
         fieldDefinition[child.fieldName + suffix] = prefixToPass + child.as
         break

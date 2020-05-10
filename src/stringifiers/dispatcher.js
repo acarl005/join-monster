@@ -121,6 +121,15 @@ async function _stringifySqlAST(parent, node, prefix, context, selections, table
       `${expr} AS ${q(joinPrefix(prefix) + node.as)}`
     )
     break
+  case 'foreign_column':
+    const table = await node.sqlForeignTable(`${q(parent.as)}`, node.args || {}, context, node)
+    selections.push(
+      `${q(node.as)}.${q(node.name)} AS ${q(joinPrefix(prefix) + node.as)}`
+    )
+    tables.push(
+      `LEFT JOIN LATERAL ${table} ${q(node.as)} ON TRUE`
+    )
+    break
   case 'noop':
     // we hit this with fields that don't need anything from SQL, they resolve independently
     return

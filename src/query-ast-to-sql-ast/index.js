@@ -171,6 +171,17 @@ export function populateASTNode(queryASTNode, parentTypeNode, sqlASTNode, namesp
       aliasFrom += '@' + parentTypeNode.name
     }
     sqlASTNode.as = namespace.generate('column', aliasFrom)
+  // Is it a foreign column with a foreign table (1-to-1 join)?
+  } else if ((field.sqlForeignColumn || !field.resolve) && field.sqlForeignTable) {
+    assert(options.dialect === 'pg', 'Foreign column is only supported for Postgres as it utilizes a LATERAL join.')
+    sqlASTNode.type = 'foreign_column'
+    sqlASTNode.sqlForeignTable = field.sqlForeignTable
+    sqlASTNode.name = field.sqlForeignColumn || field.name
+    let aliasFrom = sqlASTNode.fieldName = field.name
+    if (sqlASTNode.defferedFrom) {
+      aliasFrom += '@' + parentTypeNode.name
+    }
+    sqlASTNode.as = namespace.generate('column', aliasFrom)
   // is it just a column? if they specified a sqlColumn or they didn't define a resolver, yeah
   } else if (field.sqlColumn || !field.resolve) {
     sqlASTNode.type = 'column'
