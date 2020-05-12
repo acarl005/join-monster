@@ -178,7 +178,7 @@ async function handleTable(parent, node, prefix, context, selections, tables, wh
       await dialect.handleJoinedOneToManyPaginated(parent, node, context, tables, joinCondition)
 
     // limit has a highly similar approach to paginating
-    } else if (node.limit) {
+    } else if (node.limit && dialect.handleJoinedOneToManyPaginated) {
       node.args.first = node.limit
       await dialect.handleJoinedOneToManyPaginated(parent, node, context, tables, joinCondition)
     // otherwite, just a regular left join on the table
