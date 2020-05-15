@@ -5,7 +5,7 @@ import { getArgumentValues } from 'graphql/execution/values'
 import idx from 'idx'
 
 import AliasNamespace from '../alias-namespace'
-import { wrap, ensure, unthunk, inspect } from '../util'
+import { wrap, ensure, unthunk, inspect, validateDirectionWithDialect } from '../util'
 
 class SQLASTNode {
   constructor(parentNode, props) {
@@ -202,7 +202,7 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, namespace, grabMa
   sqlASTNode.as = namespace.generate('table', field.name)
 
   if (field.orderBy && !sqlASTNode.orderBy) {
-    sqlASTNode.orderBy = handleOrderBy(unthunk(field.orderBy, sqlASTNode.args || {}, context))
+    sqlASTNode.orderBy = handleOrderBy(unthunk(field.orderBy, sqlASTNode.args || {}, context), options)
   }
 
   // tables have child fields, lets push them to an array
@@ -235,7 +235,7 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, namespace, grabMa
     }
 
     if (field.junction.orderBy) {
-      junction.orderBy = handleOrderBy(unthunk(field.junction.orderBy, sqlASTNode.args || {}, context))
+      junction.orderBy = handleOrderBy(unthunk(field.junction.orderBy, sqlASTNode.args || {}, context), options)
     }
 
     if (field.junction.where) {
@@ -274,7 +274,7 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, namespace, grabMa
   }
 
   if (sqlASTNode.paginate) {
-    getSortColumns(field, sqlASTNode, context)
+    getSortColumns(field, sqlASTNode, context, options)
   }
 
   /*
@@ -614,19 +614,19 @@ export function pruneDuplicateSqlDeps(sqlAST, namespace) {
 }
 
 
-function getSortColumns(field, sqlASTNode, context) {
+function getSortColumns(field, sqlASTNode, context, options) {
   if (field.sortKey) {
     sqlASTNode.sortKey = unthunk(field.sortKey, sqlASTNode.args || {}, context)
   }
   if (field.orderBy) {
-    sqlASTNode.orderBy = handleOrderBy(unthunk(field.orderBy, sqlASTNode.args || {}, context))
+    sqlASTNode.orderBy = handleOrderBy(unthunk(field.orderBy, sqlASTNode.args || {}, context), options)
   }
   if (field.junction) {
     if (field.junction.sortKey) {
       sqlASTNode.junction.sortKey = unthunk(field.junction.sortKey, sqlASTNode.args || {}, context)
     }
     if (field.junction.orderBy) {
-      sqlASTNode.junction.orderBy = handleOrderBy(unthunk(field.junction.orderBy, sqlASTNode.args || {}, context))
+      sqlASTNode.junction.orderBy = handleOrderBy(unthunk(field.junction.orderBy, sqlASTNode.args || {}, context), options)
     }
   }
   if (!sqlASTNode.sortKey && !sqlASTNode.orderBy) {
@@ -669,13 +669,14 @@ function spreadFragments(selections, fragments, typeName) {
   })
 }
 
-export function handleOrderBy(orderBy) {
+export function handleOrderBy(orderBy, options) {
   if (!orderBy) return undefined
   const orderColumns = {}
   if (typeof orderBy === 'object') {
+    let directionTester = validateDirectionWithDialect(options)
     for (let column in orderBy) {
-      let direction = orderBy[column].toUpperCase()
-      if (direction !== 'ASC' && direction !== 'DESC') {
+      let direction = orderBy[column].toUpperCase().trim()
+      if (!directionTester(direction)) {
         throw new Error(direction + ' is not a valid sorting direction')
       }
       orderColumns[column] = direction

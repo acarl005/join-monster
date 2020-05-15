@@ -111,6 +111,35 @@ function getDialectName(options) {
   return options.dialect || 'sqlite3'
 }
 
+// returns new function that accepts string input for "direction"
+// to test against a wider range of options currently supported by
+// dialects listed (a.k.a. pg).
+export function validateDirectionWithDialect(options) {
+  const validDirections = {
+    pg: [
+      'ASC',
+      'DESC',
+      'ASC NULLS FIRST',
+      'ASC NULLS LAST',
+      'DESC NULLS FIRST',
+      'DESC NULLS LAST',
+      'NULLS FIRST',
+      'NULLS LAST'
+    ],
+    others: [
+      'ASC',
+      'DESC'
+    ]
+  }
+
+  const dialect = getDialectName(options)
+  const directions = validDirections[dialect] || validDirections.others
+
+  return function(direction) {
+    return directions.includes(direction)
+  }
+}
+
 export function buildWhereFunction(type, condition, options) {
   const name = getDialectName(options)
   if (typeof condition === 'function') {
