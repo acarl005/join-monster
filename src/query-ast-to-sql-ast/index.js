@@ -273,6 +273,11 @@ function handleTable(sqlASTNode, queryASTNode, field, gqlType, namespace, grabMa
     sqlASTNode.limit = unthunk(field.limit, sqlASTNode.args || {}, context)
   }
 
+  if (field.offset) {
+    assert(field.limit, '`limit` is required with `offset`')
+    sqlASTNode.offset = unthunk(field.offset, sqlASTNode.args || {}, context)
+  }
+
   if (sqlASTNode.paginate) {
     getSortColumns(field, sqlASTNode, context)
   }
