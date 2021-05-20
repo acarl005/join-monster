@@ -11,6 +11,7 @@ const numPosts = 50
 const numComments = 300
 const numRelationships = 15
 const numLikes = 300
+const numTags = 200
 
 module.exports = async db => {
   const knex = await require('../schema/setup')(db, 'demo')
@@ -116,6 +117,18 @@ module.exports = async db => {
       last_name: 'daemon'
     }
   ])
+
+  console.log('creating tags...')
+  const tags = new Array(numTags)
+  for (let i of count(numTags)) {
+    tags[i] = {
+      tag: faker.random.word(),
+      post_id: faker.random.number({ min: 1, max: numPosts }),
+      tag_order: i,
+      created_at: faker.date.past()
+    }
+  }
+  await knex.batchInsert('tags', tags, 50)
 
   await knex.destroy()
 }

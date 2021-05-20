@@ -31,7 +31,8 @@ class SQLASTNode {
 const TABLE_TYPES = [
   'GraphQLObjectType',
   'GraphQLUnionType',
-  'GraphQLInterfaceType'
+  'GraphQLInterfaceType',
+  'GraphQLScalarType'
 ]
 
 function mergeAll(fieldNodes) {

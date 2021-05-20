@@ -36,7 +36,7 @@ export type ThunkWithArgsCtx<T, TContext, TArgs> =
   | T
 
 export interface ObjectTypeExtension<TSource, TContext> {
-  alwaysFetch?: string
+  alwaysFetch?: string | string[]
   sqlTable?: ThunkWithArgsCtx<string, any, TContext>
   uniqueKey?: string | string[]
 }
@@ -89,15 +89,21 @@ export interface FieldConfigExtension<TSource, TContext, TArgs> {
 }
 
 export interface UnionTypeExtension {
-  sqlTable?: string
+  sqlTable?: ThunkWithArgsCtx<string, any, any>
   uniqueKey?: string | string[]
-  alwaysFetch?: string
+  alwaysFetch?: string | string[]
 }
 
 export interface InterfaceTypeExtension {
-  sqlTable?: string
+  sqlTable?: ThunkWithArgsCtx<string, any, any>
   uniqueKey?: string | string[]
-  alwaysFetch?: string
+  alwaysFetch?: string | string[]
+}
+
+export interface ScalarTypeExtension {
+  sqlTable?: ThunkWithArgsCtx<string, any, any>
+  uniqueKey?: string | string[]
+  alwaysFetch?: string | string[]
 }
 
 declare module 'graphql' {
@@ -116,6 +122,9 @@ declare module 'graphql' {
   }
   interface GraphQLInterfaceTypeExtensions {
     joinMonster?: InterfaceTypeExtension
+  }
+  interface GraphQLScalarTypeExtensions {
+    joinMonster?: ScalarTypeExtension
   }
 }
 

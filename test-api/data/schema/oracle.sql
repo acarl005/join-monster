@@ -86,3 +86,16 @@ CREATE TABLE "sponsors" (
   "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
+
+begin
+execute immediate 'drop table "tags" purge';
+exception when others then null;
+end;
+
+CREATE TABLE "tags" (
+  "id" NUMBER ,
+  "post_id" NUMBER DEFAULT ,
+  "tag" VARCHAR(255),
+  "tag_order" NUMBER DEFAULT ,
+  "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

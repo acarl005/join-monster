@@ -88,3 +88,31 @@ const User = new GraphQLObjectType({
   })
 })
 ```
+
+## Using scalars instead of objects
+
+Rarely, you may have a value in your GraphQL API that's best represented as a scalar value instead of an object with fields, like a special string or a JSON scalar. `GraphQLScalar`s can also be extended such that `join-monster` will retrieve them using SQL joins or batches.
+
+As an example, we could set up a `Post` object, powered by a `posts` table, that has a `tags` field which is powered by a whole other `tags` table. The `Tag` scalar might be a custom `GraphQLScalar` like so:
+
+```javascript
+const Tag = new GraphQLScalarType({
+  name: 'Tag',
+  extensions: {
+    joinMonster: {
+      sqlTable: 'tags',
+      uniqueKey: 'id',
+      alwaysFetch: ['id', 'tag_name']
+    }
+  },
+  parseValue: String,
+  serialize: String,
+  parseLiteral(ast) {
+    // ...
+  }
+})
+```
+
+which configures `join-monster` to fetch tags from the `tags` table, and to always fetch the `tag_name` column.
+
+The `Post` object can then join `Tag`s just like any other `join-monster` powered object, using either a connection or a plain `GraphQLList`. See the section on [joins](/start-joins) for more details.

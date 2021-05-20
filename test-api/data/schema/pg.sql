@@ -53,3 +53,11 @@ CREATE TABLE sponsors (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DROP TABLE IF EXISTS tags;
+CREATE TABLE tags (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL,
+  tag VARCHAR(255),
+  tag_order INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);

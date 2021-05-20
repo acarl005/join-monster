@@ -13,6 +13,7 @@ import {
 
 import knex from './database'
 import { User, UserConnection } from './User'
+import { Post } from './Post'
 import Sponsor from './Sponsor'
 import { nodeField } from './Node'
 import ContextPost from './ContextPost'
@@ -126,6 +127,31 @@ export default new GraphQLObjectType({
           where: (usersTable, args, context) => {
             // eslint-disable-line no-unused-vars
             if (args.id) return `${usersTable}.${q('id', DB)} = ${args.id}`
+          }
+        }
+      },
+      resolve: (parent, args, context, resolveInfo) => {
+        return joinMonster(
+          resolveInfo,
+          context,
+          sql => dbCall(sql, knex, context),
+          options
+        )
+      }
+    },
+    post: {
+      type: Post,
+      args: {
+        id: {
+          description: 'The posts ID number',
+          type: GraphQLInt
+        }
+      },
+      extensions: {
+        joinMonster: {
+          where: (postsTable, args) => {
+            // eslint-disable-line no-unused-vars
+            if (args.id) return `${postsTable}.${q('id', DB)} = ${args.id}`
           }
         }
       },

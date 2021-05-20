@@ -182,5 +182,28 @@ module.exports = async db => {
     }
   ])
 
+  await knex.batchInsert('tags', [
+    {
+      post_id: 1,
+      tag: 'foo',
+      tag_order: 1
+    },
+    {
+      post_id: 1,
+      tag: 'bar',
+      tag_order: 2
+    },
+    {
+      post_id: 1,
+      tag: 'baz',
+      tag_order: 3
+    },
+    {
+      post_id: 2,
+      tag: 'foo',
+      tag_order: 1
+    }
+  ])
+
   await knex.destroy()
 }
