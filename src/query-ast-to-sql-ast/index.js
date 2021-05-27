@@ -271,6 +271,8 @@ function handleTable(
   const config = getConfigFromSchemaObject(gqlType)
   const fieldConfig = getConfigFromSchemaObject(field)
 
+  const { filter } = sqlASTNode.args
+
   sqlASTNode.type = 'table'
   const sqlTable = unthunk(config.sqlTable, sqlASTNode.args || {}, context)
   sqlASTNode.name = sqlTable
@@ -303,8 +305,18 @@ function handleTable(
   // are they doing a one-to-many sql join?
   if (fieldConfig.sqlJoin) {
     sqlASTNode.sqlJoin = fieldConfig.sqlJoin
+
+    if (filter) {
+      sqlASTNode.join = createJoinMap(sqlASTNode, gqlType, namespace, context)
+      sqlASTNode.filteredOneToManyJoin = true
+    }
     // or a many-to-many?
   } else if (fieldConfig.junction) {
+    if (filter) {
+      sqlASTNode.join = createJoinMap(sqlASTNode, gqlType, namespace, context)
+      sqlASTNode.filteredManyToManyJoin = true
+    }
+
     const junctionTable = unthunk(
       ensure(fieldConfig.junction, 'sqlTable'),
       sqlASTNode.args || {},
@@ -368,6 +380,9 @@ function handleTable(
         namespace
       )
     }
+  } else if (filter) {
+    sqlASTNode.filteredWhereMap = createJoinMap(sqlASTNode, gqlType, namespace, context, queryASTNode)
+    sqlASTNode.filteredWhere = true
   }
 
   if (fieldConfig.limit) {
@@ -459,6 +474,186 @@ function handleTable(
       )
     }
   }
+}
+
+function createJoinMap(node, gqlType, namespace, context, queryASTNode) {
+  /**
+   * First, iterate through the filter.
+   * Keep track of all tables that need to be joined
+   *
+   * We also need to keep track of the order in which the tables are joined.
+   * E.G.: UserMachine --> SysMachine --> SysManufacturer
+   *                   --> SysMachine --> SysGroup
+   *
+   */
+  const { filter } = node.args
+  const { as, fieldName, name, sqlJoin, junction } = node
+
+  const joinAst = new SQLASTNode(null, {
+    as,
+    fieldName,
+    name,
+    sqlJoin,
+    junction,
+    children: []
+  })
+
+  if (filter.compare) {
+    _createJoinmap(node, context, gqlType, namespace, filter, 0, joinAst, queryASTNode)
+  } else if (filter.OR) {
+    _createJoinmap(node, context, gqlType, namespace, filter.OR, 0, joinAst, queryASTNode)
+  } else if (filter.AND) {
+    _createJoinmap(node, context, gqlType, namespace, filter.AND, 0, joinAst, queryASTNode)
+  }
+
+  return joinAst
+}
+
+function _createJoinmap(
+  node,
+  context,
+  gqlType,
+  namespace,
+  filterArr,
+  depth,
+  joinAst,
+  queryASTNode
+) {
+  filterArr = wrap(filterArr)
+
+  for (let index in filterArr) {
+    let current = filterArr[index]
+
+    if (current.OR) {
+      _createJoinmap(
+        node,
+        context,
+        gqlType,
+        namespace,
+        filter.OR,
+        depth + 1,
+        joinAst,
+        queryASTNode
+      )
+    } else if (current.AND) {
+      _createJoinmap(
+        node,
+        context,
+        gqlType,
+        namespace,
+        filter.AND,
+        depth + 1,
+        joinAst,
+        queryASTNode
+      )
+    } else if (current.compare) {
+      const { key } = current.compare
+      const parts = key.split('.')
+
+      let correspondingSqlAstNode = node;
+      let currentJAstNode = { ...joinAst }
+      let partSpecificGqlType = { ...gqlType };
+
+      parts.forEach(part => {
+        const [field, type] = getFieldAndTypeForFilterKeyPart(
+          part,
+          partSpecificGqlType,
+          joinAst.fieldName
+        )
+
+        partSpecificGqlType = type
+
+        const existingNode = currentJAstNode.children.find(
+          child => child.fieldName === part
+        )
+
+        if (idx(type, _ => _.extensions.joinMonster.sqlTable)) {
+          const sqlTable = unthunk(ensure(type.extensions.joinMonster, 'sqlTable'), node.args || {}, context)
+          
+          if (!existingNode) {
+            const newNode = new SQLASTNode(currentJAstNode, {
+              type: 'table',
+              name: sqlTable,
+              as: namespace.generate(
+                'table',
+                sqlTable
+              ),
+              fieldName: part,
+              children: []
+            })
+            
+            if (field.extensions.joinMonster.sqlJoin) {
+              newNode.sqlJoin = field.extensions.joinMonster.sqlJoin
+            } else if (field.extensions.joinMonster.junction) {
+              const junctionTable = unthunk(
+                ensure(field.extensions.joinMonster.junction, 'sqlTable'),
+                node.args || {},
+                context
+              )
+              const junction = (newNode.junction = {
+                sqlTable: junctionTable,
+                as: namespace.generate('table', junctionTable)
+              })
+
+              if (field.extensions.joinMonster.junction.sqlJoins) {
+                junction.sqlJoins =
+                  field.extensions.joinMonster.junction.sqlJoins
+              }
+            }
+
+            currentJAstNode.children.push(newNode)
+            currentJAstNode = newNode
+          } else {
+            currentJAstNode = existingNode
+          }
+        } else {
+          if (!existingNode) {
+            const name =
+              idx(field, _ => _.extensions.joinMonster.sqlColumn) || part
+            const newNode = new SQLASTNode(currentJAstNode, {
+              type: 'column',
+              name: name,
+              as: namespace.generate('column', name),
+              fieldName: part
+            })
+
+            currentJAstNode.children.push(newNode)
+          }
+        }
+      })
+    } else {
+      throw new Error(
+        `Wrong filter. Check your filter at the '${rootFieldName}' field`
+      )
+    }
+  }
+}
+
+function getFieldAndTypeForFilterKeyPart(
+  filterKeyPart,
+  gqlType,
+  rootFieldName
+) {
+  const correspondingField = idx(gqlType, _ => _._fields[filterKeyPart])
+
+  if (!correspondingField)
+    throw new Error(
+      `Wrong filter key part '${filterKeyPart}', the type '${gqlType.name}' does not contain this field.` +
+        ` Check your filter at the '${rootFieldName}' field`
+    )
+
+  let correspondingFieldType = correspondingField.type
+
+  // The direct field type could be a GraphQLList. Since we
+  // want the actual underlying type we need to get this
+  while (correspondingFieldType.ofType) {
+    correspondingFieldType = correspondingFieldType.ofType
+  }
+
+  return [
+    correspondingField,
+    correspondingFieldType
+  ]
 }
 
 // we need to collect all fields from all the fragments requested in the union type and ask for them in SQL

@@ -16,6 +16,7 @@ import Person from './Person'
 import AuthoredInterface from './Authored/Interface'
 import AuthoredUnion from './Authored/Union'
 import { toBase64, q, bool } from '../shared'
+import FilterInput from './filterInput'
 
 const { STRATEGY, DB } = process.env
 
@@ -127,6 +128,9 @@ const User = new GraphQLObjectType({
         active: {
           description: 'Get only posts not archived',
           type: GraphQLBoolean
+        },
+        filter: {
+          type: FilterInput
         }
       },
       extensions: {

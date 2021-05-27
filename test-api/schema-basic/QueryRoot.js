@@ -3,7 +3,8 @@ import {
   GraphQLList,
   GraphQLString,
   GraphQLInt,
-  GraphQLBoolean
+  GraphQLBoolean,
+  GraphQLInputObjectType
 } from 'graphql'
 
 import knex from './database'
@@ -19,6 +20,7 @@ import pgModule from '../../src/stringifiers/dialects/pg'
 import sqlite3Module from '../../src/stringifiers/dialects/sqlite3'
 
 import joinMonster from '../../src/index'
+import FilterInput from './filterInput'
 
 const { MINIFY, DB } = process.env
 const options = {
@@ -52,7 +54,8 @@ export default new GraphQLObjectType({
     users: {
       type: new GraphQLList(User),
       args: {
-        ids: { type: new GraphQLList(GraphQLInt) }
+        ids: { type: new GraphQLList(GraphQLInt) },
+        filter: { type: FilterInput }
       },
       extensions: {
         joinMonster: {
