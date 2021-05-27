@@ -5,7 +5,7 @@ const options = {
   minify: process.env.MINIFY == 1
 }
 const { PAGINATE } = process.env
-if (knex.client.config.client === 'mysql') {
+if (knex.client.config.client === 'mysql' || knex.client.config.client === 'mysql2') {
   options.dialect = PAGINATE ? 'mysql8' : 'mysql'
 } else if (knex.client.config.client === 'pg') {
   options.dialect = 'pg'
